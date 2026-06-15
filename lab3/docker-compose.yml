@@ -1,0 +1,53 @@
+services:
+  vault:
+    image: hashicorp/vault:latest
+    container_name: lab3-vault
+    cap_add:
+      - IPC_LOCK
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    ports:
+      - "8200:8200"
+    networks:
+      - lab3-network
+    command: server -dev
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    container_name: lab3-keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_DB: dev-file
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_STRICT: false
+      KC_HTTP_ENABLED: true
+      KC_PROXY_ADDRESS_FORWARDING: true
+    ports:
+      - "8080:8080"
+    networks:
+      - lab3-network
+    command: start-dev --hostname-strict=false
+
+  backend:
+    build: .
+    container_name: lab3-backend
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: root
+      KEYCLOAK_URL_INTERNAL: http://keycloak:8080
+      KEYCLOAK_URL_EXTERNAL: http://localhost:8080
+    ports:
+      - "5000:5000"
+    networks:
+      - lab3-network
+    depends_on:
+      - vault
+      - keycloak
+    volumes:
+      - ./scripts:/app/scripts
+
+networks:
+  lab3-network:
+    driver: bridge
